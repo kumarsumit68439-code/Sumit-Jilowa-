@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firebase Email Auth</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+    <div class="container">
+      <div id="authView">
+        <h1 class="title neon-text">Firebase Email Auth</h1>
+        <p class="owner-name">Website Owner: Sumit Jilowa</p>
+
+        <div class="card neon-card">
+          <input id="email" type="email" placeholder="Email" />
+          <input id="password" type="password" placeholder="Password" />
+          <button onclick="signUp()">Sign Up</button>
+          <button onclick="login()">Login</button>
+        </div>
+      </div>
+
+      <div id="homeView" style="display:none;">
+        <h1 class="title neon-text">Local Password Vault</h1>
+        <p class="owner-name">Website Owner: Sumit Jilowa</p>
+
+        <div class="card neon-card">
+          <input id="siteName" type="text" placeholder="Website / App name" />
+          <input id="siteUser" type="text" placeholder="Username / Email" />
+          <input id="sitePass" type="password" placeholder="Password" />
+          <button onclick="saveEntry()">Save</button>
+          <button onclick="logout()">Logout</button>
+        </div>
+
+        <div class="card neon-card">
+          <h2 class="section-title">Saved Entries</h2>
+          <div id="entries"></div>
+        </div>
+      </div>
+
+      <div class="card neon-card">
+        <h2 class="section-title">Status</h2>
+        <div id="status">Not logged in</div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js";
+      import {
+        getAuth,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        signOut,
+        onAuthStateChanged
+      } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCc2EE3QS27fF9Jhd-h-yqAeMhGsZgWmwk",
+        authDomain: "umit-jilowa.firebaseapp.com",
+        projectId: "umit-jilowa",
+        storageBucket: "umit-jilowa.firebasestorage.app",
+        messagingSenderId: "76391524954",
+        appId: "1:76391524954:web:5fb5791fbc9f3e2c6e8663",
+        measurementId: "G-Q1L5SMPCZZ"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+      const auth = getAuth(app);
+
+      const statusEl = document.getElementById("status");
+      const authView = document.getElementById("authView");
+      const homeView = document.getElementById("homeView");
+      const entriesEl = document.getElementById("entries");
+
+      function getEntries() {
+        return JSON.parse(localStorage.getItem("vaultEntries") || "[]");
+      }
+
+      function saveEntries(entries) {
+        localStorage.setItem("vaultEntries", JSON.stringify(entries));
+      }
+
+      function renderEntries() {
+        const entries = getEntries();
+        if (entries.length === 0) {
+          entriesEl.innerHTML = "<p>No saved entries yet.</p>";
+          return;
+        }
+
+        entriesEl.innerHTML = entries
+          .map(
+            (entry, index) => `
+              <div class="entry">
+                <strong>${entry.siteName}</strong>
+                <div>Username: ${entry.siteUser}</div>
+                <div>Password: ${entry.sitePass}</div>
+                <button class="small-btn" onclick="deleteEntry(${index})">Delete</button>
+              </div>
+            `
+          )
+          .join("");
+      }
+
+      window.saveEntry = function () {
+        const siteName = document.getElementById("siteName").value.trim();
+        const siteUser = document.getElementById("siteUser").value.trim();
+        const sitePass = document.getElementById("sitePass").value.trim();
+
+        if (!siteName || !siteUser || !sitePass) {
+          alert("Please fill all fields.");
+          return;
+        }
+
+        const entries = getEntries();
+        entries.push({ siteName, siteUser, sitePass });
+        saveEntries(entries);
+
+        document.getElementById("siteName").value = "";
+        document.getElementById("siteUser").value = "";
+        document.getElementById("sitePass").value = "";
+
+        renderEntries();
+      };
+
+      window.deleteEntry = function (index) {
+        const entries = getEntries();
+        entries.splice(index, 1);
+        saveEntries(entries);
+        renderEntries();
+      };
+
+      window.signUp = async function () {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        try {
+          await createUserWithEmailAndPassword(auth, email, password);
+          statusEl.textContent = "Account created";
+        } catch (err) {
+          statusEl.textContent = "Sign up failed: " + err.message;
+        }
+      };
+
+      window.login = async function () {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          statusEl.textContent = "Logged in";
+        } catch (err) {
+          statusEl.textContent = "Login failed: " + err.message;
+        }
+      };
+
+      window.logout = async function () {
+        await signOut(auth);
+      };
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          authView.style.display = "none";
+          homeView.style.display = "block";
+          statusEl.textContent = "Logged in: " + (user.email || user.uid);
+          renderEntries();
+        } else {
+          authView.style.display = "block";
+          homeView.style.display = "none";
+          statusEl.textContent = "Not logged in";
+        }
+      });
+
+      renderEntries();
+    </script>
+  </body>
+</html>
